@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ vPanel Pro v2.0
+# ⚡ Nexora VM Panel v1.0
 ### Next-Gen QEMU/KVM Virtual Machine Management Web Panel
 
 [![Node.js](https://img.shields.io/badge/Node.js-v18+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org)
@@ -184,5 +184,5 @@ AUTO_AGENT_PORT_MAX=26200
 Distributed under the MIT License. See `LICENSE` for more information.
 
 <div align="center">
-  <sub>Built with ❤️ by <a href="https://github.com/nobita329">Nobita</a> for developers and sysadmins worldwide.</sub>
+  <sub>Built with ❤️ its for developers and sysadmins worldwide.</sub>
 </div>
