@@ -1,0 +1,582 @@
+<%- include('../partials/head', { title: 'Nodes & Performance Statistics' }) %>
+<%- include('../partials/ambient') %>
+<%- include('../partials/topbar') %>
+<%- include('../partials/sidebar') %>
+
+<style>
+.node-hero-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(6, 9, 19, 0.95) 100%);
+  border: 1px solid var(--accent);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 0 20px rgba(99,102,241,0.15);
+  border-radius: 18px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.node-hero-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  pointer-events: none;
+}
+.metric-progress-track {
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 10px;
+  position: relative;
+}
+.metric-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 99px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease;
+}
+.spec-item {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.spec-label {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+}
+.spec-val {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #fff;
+}
+.core-box {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  padding: 10px;
+}
+.chart-canvas-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+</style>
+
+<div class="main">
+  <!-- Page Header -->
+  <div class="flex-between mb-4">
+    <div>
+      <div class="muted text-sm" style="margin-bottom:2px">Cluster Infrastructure / Host Telemetry</div>
+      <h2 style="font-size:24px;font-weight:800;letter-spacing:-0.4px;margin:0">Nodes &amp; Performance Statistics</h2>
+    </div>
+    <div class="flex" style="gap:10px;align-items:center">
+      <span class="pill pill-green" id="nodeMasterPill">
+        <span class="pulse-dot"></span> Node 1 (Primary) Online
+      </span>
+      <button type="button" class="btn btn-sm" onclick="fetchNodeLiveStatus(true)" title="Force Refresh Node Telemetry">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Primary Node Overview Hero Card -->
+  <div class="node-hero-card mb-4">
+    <div class="flex-between" style="flex-wrap:wrap;gap:16px;position:relative;z-index:1">
+      <div class="flex" style="gap:16px;align-items:center">
+        <div style="width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg, var(--accent), var(--accent-2));display:grid;place-items:center;color:#fff;box-shadow:0 0 24px var(--accent-glow)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>
+        </div>
+        <div>
+          <div class="flex" style="gap:8px;align-items:center">
+            <h3 style="font-size:20px;font-weight:800;color:#fff;margin:0" id="nodeNameText"><%= nodeStats.name %></h3>
+            <span class="pill pill-blue font-bold">Primary Hypervisor</span>
+          </div>
+          <div class="muted text-sm mt-1" style="font-size:12.5px">
+            Hostname: <span class="mono font-bold text-white" id="nodeHostText"><%= nodeStats.hostname %></span> · IP: <span class="mono text-white"><%= nodeStats.ip %></span> · Location: <span class="text-white"><%= nodeStats.location %></span>
+          </div>
+        </div>
+      </div>
+      <div class="flex" style="gap:20px;align-items:center">
+        <div style="text-align:right">
+          <div class="muted text-sm" style="font-size:11.5px">Host System Uptime</div>
+          <div class="mono font-bold" style="font-size:16px;color:#fff" id="nodeUptimeText"><%= Math.floor(nodeStats.uptime_seconds / 3600) %>h <%= Math.floor((nodeStats.uptime_seconds % 3600) / 60) %>m <%= nodeStats.uptime_seconds % 60 %>s</div>
+        </div>
+        <div style="text-align:right">
+          <div class="muted text-sm" style="font-size:11.5px">VM Cluster Density</div>
+          <div class="font-bold" style="font-size:16px;color:var(--accent-2)" id="nodeVmDensityText"><%= nodeStats.vms.running %> / <%= nodeStats.vms.total %> Active</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real-Time Metrics 4-Card Grid -->
+  <div class="grid grid-4 mb-4">
+    <!-- CPU Metric Card -->
+    <div class="stat" style="display:block;padding:20px">
+      <div class="flex-between">
+        <div class="stat-label" style="font-size:13px;font-weight:600">CPU Usage</div>
+        <span class="pill pill-blue mono font-bold" id="cpuBadge"><%= nodeStats.cpu.percent %>%</span>
+      </div>
+      <div class="stat-value mt-2" style="font-size:26px" id="cpuValueText"><%= nodeStats.cpu.percent %><span style="font-size:16px;color:var(--text-dim)">%</span></div>
+      <div class="metric-progress-track">
+        <div class="metric-progress-fill" id="cpuBarFill" style="background:linear-gradient(90deg, #38bdf8, #6366f1)" data-init-width="<%= Math.min(100, Math.max(2, nodeStats.cpu.percent)) %>"></div>
+      </div>
+      <div class="muted text-sm mt-2 mono" style="font-size:11px" id="cpuCoresText">
+        <%= nodeStats.cpu.cores_count %> Cores · Load: <%= nodeStats.cpu.load_avg.join(', ') %>
+      </div>
+    </div>
+
+    <!-- Memory (RAM) Metric Card -->
+    <div class="stat" style="display:block;padding:20px">
+      <div class="flex-between">
+        <div class="stat-label" style="font-size:13px;font-weight:600">Memory (RAM)</div>
+        <span class="pill pill-green mono font-bold" id="memBadge"><%= nodeStats.memory.percent %>%</span>
+      </div>
+      <div class="stat-value mt-2" style="font-size:26px" id="memValueText"><%= (nodeStats.memory.used_mb / 1024).toFixed(1) %><span style="font-size:16px;color:var(--text-dim)"> / <%= (nodeStats.memory.total_mb / 1024).toFixed(1) %> GB</span></div>
+      <div class="metric-progress-track">
+        <div class="metric-progress-fill" id="memBarFill" style="background:linear-gradient(90deg, #10b981, #34d399)" data-init-width="<%= Math.min(100, Math.max(2, nodeStats.memory.percent)) %>"></div>
+      </div>
+      <div class="muted text-sm mt-2 mono" style="font-size:11px" id="memFreeText">
+        <%= (nodeStats.memory.free_mb / 1024).toFixed(1) %> GB Free · <%= nodeStats.vms.allocated_memory_mb %> MB in VMs
+      </div>
+    </div>
+
+    <!-- Disk Storage Metric Card -->
+    <div class="stat" style="display:block;padding:20px">
+      <div class="flex-between">
+        <div class="stat-label" style="font-size:13px;font-weight:600">Host Storage</div>
+        <span class="pill pill-yellow mono font-bold" id="diskBadge"><%= nodeStats.disk.percent %>%</span>
+      </div>
+      <div class="stat-value mt-2" style="font-size:26px" id="diskValueText"><%= nodeStats.disk.used_gb %><span style="font-size:16px;color:var(--text-dim)"> / <%= nodeStats.disk.total_gb %> GB</span></div>
+      <div class="metric-progress-track">
+        <div class="metric-progress-fill" id="diskBarFill" style="background:linear-gradient(90deg, #f59e0b, #fbbf24)" data-init-width="<%= Math.min(100, Math.max(2, nodeStats.disk.percent)) %>"></div>
+      </div>
+      <div class="muted text-sm mt-2 mono" style="font-size:11px" id="diskFreeText">
+        <%= nodeStats.disk.free_gb %> GB Available on Root
+      </div>
+    </div>
+
+    <!-- Network Throughput Metric Card -->
+    <div class="stat" style="display:block;padding:20px">
+      <div class="flex-between">
+        <div class="stat-label" style="font-size:13px;font-weight:600">Network I/O</div>
+        <span class="pill pill-blue font-bold" id="netSpeedBadge">Live RX/TX</span>
+      </div>
+      <div class="stat-value mt-2" style="font-size:24px" id="netRxTxText">
+        <span style="color:#38bdf8">↓ <%= nodeStats.network.rx_kbps %></span> <span style="font-size:14px;color:var(--text-dim)">KB/s</span>
+      </div>
+      <div class="metric-progress-track">
+        <div class="metric-progress-fill" style="width:100%;background:linear-gradient(90deg, #38bdf8, #a855f7)"></div>
+      </div>
+      <div class="muted text-sm mt-2 mono" style="font-size:11px" id="netTxDetailText">
+        ↑ Outbound: <%= nodeStats.network.tx_kbps %> KB/s · Total: <%= (nodeStats.network.rx_bytes / (1024**3)).toFixed(2) %> GB In
+      </div>
+    </div>
+  </div>
+
+  <!-- Real-Time Performance Charts Section (2 Columns) -->
+  <div class="grid grid-2 mb-4" style="gap:20px">
+    <!-- Chart 1: CPU & RAM Timeline -->
+    <div class="card" style="padding:20px">
+      <div class="flex-between mb-3">
+        <div class="card-title" style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Live CPU &amp; Memory Utilization History
+        </div>
+        <div class="flex" style="gap:10px;font-size:11.5px">
+          <span style="color:#38bdf8;font-weight:700">● CPU %</span>
+          <span style="color:#34d399;font-weight:700">● Memory %</span>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap">
+        <canvas id="cpuMemChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 2: Network Traffic Speed -->
+    <div class="card" style="padding:20px">
+      <div class="flex-between mb-3">
+        <div class="card-title" style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+          Live Network Throughput (KB/s)
+        </div>
+        <div class="flex" style="gap:10px;font-size:11.5px">
+          <span style="color:#38bdf8;font-weight:700">● Inbound (RX)</span>
+          <span style="color:#f59e0b;font-weight:700">● Outbound (TX)</span>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap">
+        <canvas id="netChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-Core Processor Utilization Matrix -->
+  <div class="card mb-4" style="padding:22px">
+    <div class="flex-between mb-3">
+      <div class="card-title" style="margin:0;display:flex;align-items:center;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+        Multi-Core Processor Load Matrix
+      </div>
+      <span class="muted text-sm mono font-bold" id="cpuModelTopText"><%= nodeStats.cpu.model %></span>
+    </div>
+    
+    <div class="grid grid-4" style="gap:12px" id="coreMatrixGrid">
+      <% nodeStats.cpu.per_core.forEach((corePct, idx) => { %>
+        <div class="core-box">
+          <div class="flex-between">
+            <span style="font-weight:700;font-size:12.5px;color:#fff">Core <%= idx %></span>
+            <span class="pill pill-blue mono font-bold" style="font-size:10.5px;padding:1px 6px" id="coreBadge<%= idx %>"><%= corePct %>%</span>
+          </div>
+          <div class="metric-progress-track" style="margin-top:2px;height:6px">
+            <div class="metric-progress-fill" id="coreBar<%= idx %>" style="background:linear-gradient(90deg, #38bdf8, #6366f1)" data-init-width="<%= Math.min(100, Math.max(2, corePct)) %>"></div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- Hardware Specs & Environment Details (2 Columns) -->
+  <div class="grid grid-2 mb-4" style="gap:20px">
+    <!-- Node System Details -->
+    <div class="card" style="padding:22px">
+      <div class="card-title mb-3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 10 10 0 0 0 9.54-13.88A10 10 0 0 0 12 2z"/></svg>
+        Node System Environment
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="spec-item">
+          <span class="spec-label">Processor Model</span>
+          <span class="spec-val"><%= nodeStats.cpu.model %> (<%= nodeStats.cpu.cores_count %> Cores)</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">OS Platform &amp; Kernel</span>
+          <span class="spec-val"><%= nodeStats.os.type %> <%= nodeStats.os.release %> (<%= nodeStats.os.arch %>)</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">Swap Memory Storage</span>
+          <span class="spec-val mono"><%= nodeStats.swap.used_mb %> MB / <%= nodeStats.swap.total_mb %> MB (<%= nodeStats.swap.percent %>%)</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">Process Daemon Runtime</span>
+          <span class="spec-val mono">PM2 Cluster (PID <%= process.pid %>)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Virtualization Stack Details -->
+    <div class="card" style="padding:22px">
+      <div class="card-title mb-3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Virtualization Engine &amp; Density
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="spec-item">
+          <span class="spec-label">QEMU Hypervisor Engine</span>
+          <span class="pill pill-green font-bold">Installed &amp; Online</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">Cloud-Init Engine (cloud-localds)</span>
+          <span class="pill pill-green font-bold">Ready</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">KVM Hardware Acceleration</span>
+          <span class="pill <%= nodeStats.hypervisor.kvm_support ? 'pill-green' : 'pill-yellow' %> font-bold"><%= nodeStats.hypervisor.kvm_support ? 'Enabled (/dev/kvm)' : 'Emulation' %></span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">Total Assigned vCPUs / RAM</span>
+          <span class="spec-val mono"><%= nodeStats.vms.allocated_cpus %> vCPUs / <%= nodeStats.vms.allocated_memory_mb %> MB</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hosted Virtual Machines Table -->
+  <div class="card">
+    <div class="flex-between mb-3">
+      <div class="card-title" style="margin:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>
+        Virtual Machines Hosted on this Node (<span id="vmCountText"><%= vms.length %></span>)
+      </div>
+      <a href="/admin/servers/create" class="btn btn-primary btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+        Deploy VM to Node
+      </a>
+    </div>
+
+    <% if (vms.length === 0) { %>
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>
+        <p style="font-size:15px;font-weight:600;color:var(--text)">No VMs deployed on this node yet</p>
+        <div class="mt-2"><a href="/admin/servers/create" class="btn btn-primary btn-sm">Create First VM</a></div>
+      </div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Virtual Machine</th>
+              <th>Owner</th>
+              <th>OS / Distro</th>
+              <th>Hardware Allocation</th>
+              <th>SSH Port</th>
+              <th>Live Status</th>
+              <th class="right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+          <% for (const v of vms) { %>
+            <tr>
+              <td>
+                <div class="flex" style="gap:10px">
+                  <div style="width:32px;height:32px;border-radius:9px;background:var(--glass);display:grid;place-items:center;border:1px solid var(--border)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-2)" stroke-width="2" width="16" height="16"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>
+                  </div>
+                  <div>
+                    <a href="/admin/servers/<%= v.id %>" style="font-weight:700;color:#fff;font-size:13.5px"><%= v.name %></a>
+                    <div class="muted text-sm mono" style="font-size:11px"><%= v.username %>@<%= v.hostname || 'localhost' %></div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="muted font-bold"><%= v.owner_name %></span></td>
+              <td><span class="pill pill-blue font-bold"><%= v.os_type || '-' %></span></td>
+              <td><span class="muted"><%= v.cpus %> vCPU · <%= v.memory %>MB · <%= v.disk_size %></span></td>
+              <td class="mono font-bold" style="color:var(--accent-2)">Port <%= v.ssh_port %></td>
+              <td><span class="pill <%= v.status === 'running' ? 'pill-green' : 'pill-gray' %>"><%= v.status === 'running' ? '● Online' : 'Stopped' %></span></td>
+              <td class="right">
+                <div class="flex right" style="gap:6px">
+                  <a class="btn btn-sm" href="/servers/<%= v.id %>/console" title="Open SSH Console">Terminal</a>
+                  <a class="btn btn-sm" href="/admin/servers/<%= v.id %>">Manage</a>
+                </div>
+              </td>
+            </tr>
+          <% } %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/music') %>
+<%- include('../partials/foot') %>
+
+<!-- Node Telemetry JSON Payload -->
+<script id="nodeTelemetryHistory" type="application/json">
+<%- JSON.stringify(nodeStats.history || { cpu: [], memory: [], net_rx: [], net_tx: [] }) %>
+</script>
+
+<script>
+let nodePollInterval = null;
+let historyData = { cpu: [], memory: [], net_rx: [], net_tx: [] };
+
+try {
+  const rawHist = document.getElementById('nodeTelemetryHistory');
+  if (rawHist && rawHist.textContent) {
+    historyData = JSON.parse(rawHist.textContent.trim());
+  }
+} catch (e) {
+  console.warn('Failed to parse telemetry history:', e);
+}
+
+function formatUptime(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return `${h}h ${m}m ${s}s`;
+}
+
+// Canvas Waveform Chart Renderer
+function drawWaveform(canvasId, seriesA, seriesB, colorA, colorB, maxVal = 100) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background Grid Lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y <= h; y += h / 4) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  function drawLineSeries(data, strokeColor, fillColor) {
+    if (!data || data.length < 2) return;
+    const step = w / (data.length - 1);
+
+    ctx.beginPath();
+    data.forEach((val, i) => {
+      const clamped = Math.max(0, Math.min(maxVal, val));
+      const x = i * step;
+      const y = h - (clamped / maxVal) * (h - 14) - 6;
+      if (i === 0) ctx.moveTo(x, y);
+      else {
+        const prevX = (i - 1) * step;
+        const prevClamped = Math.max(0, Math.min(maxVal, data[i - 1]));
+        const prevY = h - (prevClamped / maxVal) * (h - 14) - 6;
+        const cpX = (prevX + x) / 2;
+        ctx.bezierCurveTo(cpX, prevY, cpX, y, x, y);
+      }
+    });
+
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+
+    // Fill Area under curve
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, fillColor);
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  if (seriesB && seriesB.length) {
+    drawLineSeries(seriesB, colorB, 'rgba(52, 211, 153, 0.15)');
+  }
+  if (seriesA && seriesA.length) {
+    drawLineSeries(seriesA, colorA, 'rgba(56, 189, 248, 0.25)');
+  }
+}
+
+function renderCharts() {
+  drawWaveform('cpuMemChart', historyData.cpu, historyData.memory, '#38bdf8', '#34d399', 100);
+  const maxNet = Math.max(100, ...(historyData.net_rx || [0]), ...(historyData.net_tx || [0]));
+  drawWaveform('netChart', historyData.net_rx, historyData.net_tx, '#38bdf8', '#f59e0b', maxNet);
+}
+
+function initProgressBarWidths() {
+  document.querySelectorAll('[data-init-width]').forEach((el) => {
+    const w = el.getAttribute('data-init-width');
+    if (w) el.style.width = w + '%';
+  });
+}
+
+async function fetchNodeLiveStatus(manual = false) {
+  try {
+    const res = await fetch('/admin/nodes/status', {
+      headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + vpToken() }
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    if (!d.ok || !d.stats) return;
+
+    const s = d.stats;
+
+    // Update Uptime & Density
+    const upEl = document.getElementById('nodeUptimeText');
+    if (upEl) upEl.textContent = formatUptime(s.uptime_seconds);
+    const densEl = document.getElementById('nodeVmDensityText');
+    if (densEl) densEl.textContent = `${s.vms.running} / ${s.vms.total} Active`;
+
+    // CPU Updates
+    const cpuVal = document.getElementById('cpuValueText');
+    if (cpuVal) cpuVal.innerHTML = `${s.cpu.percent}<span style="font-size:16px;color:var(--text-dim)">%</span>`;
+    const cpuBadge = document.getElementById('cpuBadge');
+    if (cpuBadge) cpuBadge.textContent = `${s.cpu.percent}%`;
+    const cpuBar = document.getElementById('cpuBarFill');
+    if (cpuBar) cpuBar.style.width = `${Math.min(100, Math.max(2, s.cpu.percent))}%`;
+    const cpuCores = document.getElementById('cpuCoresText');
+    if (cpuCores) cpuCores.textContent = `${s.cpu.cores_count} Cores · Load: ${s.cpu.load_avg.join(', ')}`;
+
+    // Per-core Matrix
+    if (s.cpu.per_core) {
+      s.cpu.per_core.forEach((corePct, idx) => {
+        const b = document.getElementById('coreBadge' + idx);
+        if (b) b.textContent = `${corePct}%`;
+        const bar = document.getElementById('coreBar' + idx);
+        if (bar) bar.style.width = `${Math.min(100, Math.max(2, corePct))}%`;
+      });
+    }
+
+    // Memory Updates
+    const memVal = document.getElementById('memValueText');
+    if (memVal) memVal.innerHTML = `${(s.memory.used_mb / 1024).toFixed(1)}<span style="font-size:16px;color:var(--text-dim)"> / ${(s.memory.total_mb / 1024).toFixed(1)} GB</span>`;
+    const memBadge = document.getElementById('memBadge');
+    if (memBadge) memBadge.textContent = `${s.memory.percent}%`;
+    const memBar = document.getElementById('memBarFill');
+    if (memBar) memBar.style.width = `${Math.min(100, Math.max(2, s.memory.percent))}%`;
+    const memFree = document.getElementById('memFreeText');
+    if (memFree) memFree.textContent = `${(s.memory.free_mb / 1024).toFixed(1)} GB Free · ${s.vms.allocated_memory_mb} MB in VMs`;
+
+    // Disk Updates
+    if (s.disk) {
+      const diskVal = document.getElementById('diskValueText');
+      if (diskVal) diskVal.innerHTML = `${s.disk.used_gb}<span style="font-size:16px;color:var(--text-dim)"> / ${s.disk.total_gb} GB</span>`;
+      const diskBadge = document.getElementById('diskBadge');
+      if (diskBadge) diskBadge.textContent = `${s.disk.percent}%`;
+      const diskBar = document.getElementById('diskBarFill');
+      if (diskBar) diskBar.style.width = `${Math.min(100, Math.max(2, s.disk.percent))}%`;
+      const diskFree = document.getElementById('diskFreeText');
+      if (diskFree) diskFree.textContent = `${s.disk.free_gb} GB Available on Root`;
+    }
+
+    // Network Updates
+    if (s.network) {
+      const netVal = document.getElementById('netRxTxText');
+      if (netVal) netVal.innerHTML = `<span style="color:#38bdf8">↓ ${s.network.rx_kbps}</span> <span style="font-size:14px;color:var(--text-dim)">KB/s</span>`;
+      const netDetail = document.getElementById('netTxDetailText');
+      if (netDetail) netDetail.textContent = `↑ Outbound: ${s.network.tx_kbps} KB/s · Total: ${(s.network.rx_bytes / (1024**3)).toFixed(2)} GB In`;
+    }
+
+    // Chart Rolling History Updates
+    if (s.history) {
+      historyData = s.history;
+      renderCharts();
+    }
+
+    if (manual) VP.toast('Performance statistics refreshed', 'success');
+
+  } catch (err) {
+    console.error('Failed to poll node statistics:', err);
+  }
+}
+
+// Start live polling & chart rendering
+document.addEventListener('DOMContentLoaded', () => {
+  initProgressBarWidths();
+  renderCharts();
+  nodePollInterval = setInterval(fetchNodeLiveStatus, 2000);
+});
+window.addEventListener('resize', renderCharts);
+window.addEventListener('beforeunload', () => {
+  if (nodePollInterval) clearInterval(nodePollInterval);
+});
+</script>

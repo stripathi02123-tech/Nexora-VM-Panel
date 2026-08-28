@@ -1,0 +1,18 @@
+{
+  "name": "nexora-discord-bot",
+  "version": "1.0.0",
+  "description": "Nexora Cloud status/monitoring Discord bot. Talks only to the Nexora panel REST API — never touches QEMU/libvirt or the database directly.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "register": "node src/register-commands.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  }
+}

@@ -1,0 +1,14 @@
+<%- include('../partials/head', { title: title || 'Forbidden' }) %>
+<%- include('../partials/ambient') %>
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center">
+    <div class="empty-icon" style="margin:0 auto 18px auto;width:52px;height:52px;border-radius:14px;background:var(--red-glow);border:1px solid rgba(217,112,94,0.3);display:grid;place-items:center;color:var(--red)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </div>
+    <div style="font-family:var(--font-display);font-size:44px;font-weight:700;color:var(--text-dim);letter-spacing:-0.02em;line-height:1"><%= code || '403' %></div>
+    <h1 class="auth-title" style="margin-top:10px"><%= title || 'Forbidden' %></h1>
+    <p class="auth-sub"><%= message || 'You do not have permission to view this page.' %></p>
+    <a href="/dashboard" class="btn btn-primary btn-block">Go to Dashboard</a>
+  </div>
+</div>
+<%- include('../partials/foot') %>

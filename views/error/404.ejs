@@ -1,0 +1,14 @@
+<%- include('../partials/head', { title: title || 'Not Found' }) %>
+<%- include('../partials/ambient') %>
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center">
+    <span class="brand-mark lg" style="margin:0 auto 18px auto">
+      <svg viewBox="0 0 40 40" width="30" height="30"><path d="M11 28V12h3.6l10 12.6V12h3.4v16h-3.6L14.4 15.4V28z" fill="#c9974a"/><circle cx="28.5" cy="12.5" r="2.6" fill="#4fa8a3"/></svg>
+    </span>
+    <div style="font-family:var(--font-display);font-size:44px;font-weight:700;color:var(--text-dim);letter-spacing:-0.02em;line-height:1"><%= code || '404' %></div>
+    <h1 class="auth-title" style="margin-top:10px"><%= title || 'Page not found' %></h1>
+    <p class="auth-sub"><%= message || "The page you're looking for doesn't exist or has moved." %></p>
+    <a href="/" class="btn btn-primary btn-block">Back to home</a>
+  </div>
+</div>
+<%- include('../partials/foot') %>
