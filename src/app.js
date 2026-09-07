@@ -18,6 +18,51 @@ const taskService = require('./services/taskService');
 
 const authService = require('./services/authService');
 
+// CORS configuration. The frontend may be hosted separately (for example on
+// CodeSandbox), so allow the configured frontend URL(s) instead of using '*'.
+const configuredCorsOrigins = String(
+  process.env.CORS_ORIGINS || process.env.FRONTEND_URL || ''
+)
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
+const defaultCorsOrigins = [
+  `http://localhost:${config.panelPort}`,
+  `http://127.0.0.1:${config.panelPort}`,
+];
+
+const corsOrigins = new Set([...defaultCorsOrigins, ...configuredCorsOrigins]);
+
+function normalizeOrigin(origin) {
+  return String(origin || '').trim().replace(/\/$/, '');
+}
+
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true;
+  const normalized = normalizeOrigin(origin);
+  return corsOrigins.has(normalized);
+}
+
+function applyCors(req, res, next) {
+  const origin = normalizeOrigin(req.headers.origin);
+
+  if (isAllowedCorsOrigin(origin)) {
+    if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    return next();
+  }
+
+  return res.status(403).json({
+    error: 'Origin not allowed by CORS',
+    origin,
+  });
+}
+
 function createWebApp() {
   const app = express();
   app.disable('x-powered-by');
@@ -69,13 +114,7 @@ function createApiApp() {
   app.disable('x-powered-by');
   app.use(express.json({ limit: '50mb' }));
   app.use(cookieParser());
-  app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-    if (req.method === 'OPTIONS') return res.sendStatus(204);
-    next();
-  });
+  app.use(applyCors);
   app.use('/api/bot', require('./routes/apiBot'));
   app.use('/api', require('./routes/api'));
   app.use((req, res) => res.status(404).json({ error: 'Not found' }));
@@ -286,7 +325,13 @@ function bootstrap() {
     maxHttpBufferSize: 1e7,
     pingInterval: 10000,
     pingTimeout: 25000,
-    cors: { origin: '*' }
+    cors: {
+      origin: (origin, callback) => {
+        if (isAllowedCorsOrigin(origin)) return callback(null, true);
+        return callback(new Error('Origin not allowed by CORS'));
+      },
+      credentials: true,
+    },
   });
   attachConsoleSocket(io);
   attachTaskSocket(io);
